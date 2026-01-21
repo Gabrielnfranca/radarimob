@@ -1,70 +1,82 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
 import { detectLocation } from '../utils/locationDetector';
 import { classifyIntent } from './classifier';
 
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_CX = process.env.GOOGLE_SEARCH_CX; // ID do Motor de Busca Personalizado
+
 export async function fetchRealSignals() {
-  console.log("🌍 Executando busca real na web (Via DuckDuckGo)...");
+  if (!GOOGLE_API_KEY || !GOOGLE_CX) {
+    console.warn("⚠️ Google API Key ou CX não configurados. Usando Mock.");
+    return [];
+  }
+
+  console.log("🌍 Buscando no Google (API Oficial)...");
   
+  // Termos de busca rotativos
   const queries = [
-    'site:facebook.com "procuro apartamento" "são paulo"',
-    'site:facebook.com "busco casa" "zona sul"',
-    'site:twitter.com "procuro imovel" "são paulo"',
+    '"procuro apartamento" "são paulo" site:facebook.com',
+    '"busco casa" "zona sul" site:instagram.com',
+    '"procuro imovel" "são paulo" site:twitter.com',
+    'compro apartamento reformado sp site:facebook.com'
   ];
 
   const randomQuery = queries[Math.floor(Math.random() * queries.length)];
-  const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(randomQuery)}&df=d`; // df=d (último dia)
 
   try {
-    const { data } = await axios.get(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
+      params: {
+        key: GOOGLE_API_KEY,
+        cx: GOOGLE_CX,
+        q: randomQuery,
+        num: 5, // Traz 5 resultados por vez
+        dateRestrict: 'd1', // Apenas últimas 24h
+        cr: 'countryBR', // Prioriza Brasil
+        gl: 'br'
       }
     });
 
-    const $ = cheerio.load(data);
+    if (!response.data.items) {
+        console.log("⚠️ Google não retornou itens.");
+        return [];
+    }
+
     const signals: any[] = [];
 
-    $('.result').each((i, el) => {
-      const title = $(el).find('.result__title').text().trim();
-      const snippet = $(el).find('.result__snippet').text().trim();
-      const url = $(el).find('.result__url').attr('href');
-
-      if (title && snippet && url) {
-        // Combinar titulo e snippet para analise
-        const fullText = `${title} ${snippet}`;
+    for (const item of response.data.items) {
+        const fullText = `${item.title} ${item.snippet}`;
         
-        // 1. Detectar Local
+        // 1. Detectar Local e Intenção
         const locationMatch = detectLocation(fullText);
-        
-        // 2. Classificar Intenção
         const classification = classifyIntent(fullText);
 
-        // Só queremos leads que pareçam ter alguma intenção real
+        // Filtra resultados irrelevantes
         if (locationMatch.location_id !== null || classification.score > 20) {
-           
-            // Extrair plataforma do URL
+            
             let platform = 'Web';
-            if (url.includes('facebook')) platform = 'Facebook';
-            if (url.includes('instagram')) platform = 'Instagram';
-            if (url.includes('twitter') || url.includes('x.com')) platform = 'Twitter';
+            if (item.link.includes('facebook')) platform = 'Facebook';
+            if (item.link.includes('instagram')) platform = 'Instagram';
+            if (item.link.includes('twitter') || item.link.includes('x.com')) platform = 'Twitter';
 
             signals.push({
-              raw_content: snippet,
-              url_original: url, // Link real!
+              raw_content: item.snippet.replace(/\n/g, ' '),
+              url_original: item.link, 
               locationMatch,
               classification,
               posted_at: new Date().toISOString(),
               source_platform: platform
             });
         }
-      }
-    });
+    }
 
     return signals;
 
   } catch (error: any) {
-    console.error("❌ Erro no RealScraper:", error.message);
+    if (error.response) {
+        console.error(`❌ Erro Google API (${error.response.status}):`, error.response.data.error.message);
+    } else {
+        console.error("❌ Erro de conexão Google:", error.message);
+    }
     return [];
   }
 }
