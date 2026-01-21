@@ -68,6 +68,7 @@ const fetcher = async () => {
       ...item,
       locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
       source: Array.isArray(item.source) ? item.source[0] : item.source,
+      author_name: 'Usuário do Facebook', // Fallback enquanto não temos coluna author no BD
       classification: item.classification || { label: 'Curioso', score: 0 } 
     }));
 

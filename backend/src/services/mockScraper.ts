@@ -54,7 +54,8 @@ export function generateMockSignal() {
     raw_content: content,
     author_name: fakeUser, // Não vai pro banco no MVP 1.0, mas útil saber
     source: getRandomElement(SOURCES),
-    url_original: `https://facebook.com/groups/fake_post_${Math.floor(Math.random() * 10000)}`,
+    // Gera URL de busca real para ser útil
+    url_original: `https://www.facebook.com/search/posts?q=${encodeURIComponent(content.substring(0, 50))}`,
     posted_at: new Date(Date.now() - Math.floor(Math.random() * 10000000)).toISOString(), // Post recente
     
     // Dados processados
