@@ -34,3 +34,6 @@ ts-debug.log*
 
 # Typescript
 *.tsbuildinfo
+
+# Backend Ignore (Opcional, mas bom para evitar confusão no frontend)
+# backend/node_modules
