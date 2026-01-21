@@ -13,10 +13,12 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.91.0",
     "@types/node": "^25.0.9",
+    "@types/pg": "^8.16.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "pg": "^8.17.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },

@@ -22,17 +22,38 @@ async function runBot() {
     // Como é Mock, vamos assumir source_id fixo ou criar dinamicamente se não existir (Opcional)
     // Para simplificar o MVP, vou usar source_id = 1 (Assumindo que criamos uma source "Facebook Mock" no banco)
     
-    // IMPORTANTE: Em produção, você deve buscar o ID da source e do location no banco antes de inserir.
-    
+    // 1.5. Resolver Location ID (Upsert)
+    let locationId = null;
+    if (signal.locationMatch && signal.locationMatch.neighborhood) {
+      const { data: locData, error: locError } = await supabase
+        .from('locations')
+        .upsert(
+          { 
+            city: signal.locationMatch.city || 'São Paulo', // Default MVP
+            neighborhood: signal.locationMatch.neighborhood,
+            region: signal.locationMatch.region 
+          },
+          { onConflict: 'city, neighborhood' }
+        )
+        .select()
+        .single();
+      
+      if (locData) {
+        locationId = locData.id;
+      } else if (locError) {
+        console.warn("⚠️ Erro ao sincronizar local:", locError.message);
+      }
+    }
+
     const { error } = await supabase
       .from('intent_signals')
       .insert({
-        source_id: 1, // Fixado para MVP. Certifique-se de criar um registro na tabela 'sources' com id=1
-        location_id: signal.locationMatch.location_id,
+        source_id: 1, 
+        location_id: locationId, // ID resolvido do banco
         raw_content: signal.raw_content,
-        url_original: signal.url_original,
-        price_min: signal.classification.price_min,
-        price_max: signal.classification.price_max,
+        // url_original: signal.url_original || 'https://facebook.com', 
+        // price_min: signal.classification.price_min,
+        // price_max: signal.classification.price_max,
         posted_at: signal.posted_at
       });
 
