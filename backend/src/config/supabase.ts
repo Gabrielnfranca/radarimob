@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config({ path: '../../.env' }); // Busca .env na raiz do workspace se possível, ou ajustar path
+// Tenta carregar do arquivo .env no diretório atual (backend)
+dotenv.config();
+
+// Se não achar, tenta subir um nível (raiz do projeto)
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local') }); 
 
 // Fallback para variáveis se não estiverem no .env ainda (para evitar crash imediato durante dev)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://sua-url.supabase.co';
