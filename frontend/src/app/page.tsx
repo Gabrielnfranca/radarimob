@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { CardLead } from '@/components/CardLead';
@@ -42,39 +40,32 @@ const MOCK_LEADS = [
   }
 ];
 
-// Simulador de Fetcher usando Supabase Real com Fallback para Mock
+// Simulador de Fetcher usando Supabase Real
 const fetcher = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('intent_signals')
-      .select(`
-        *,
-        source:sources(name, platform),
-        locations(neighborhood, region, city)
-      `)
-      .order('posted_at', { ascending: false })
-      .limit(50);
+  const { data, error } = await supabase
+    .from('intent_signals')
+    .select(`
+      *,
+      source:sources(name, platform),
+      locations(neighborhood, region, city)
+    `)
+    .order('posted_at', { ascending: false })
+    .limit(50);
 
-    // Se der erro (ex: tabela não existe) ou vier vazio, retorna MOCK
-    if (error || !data || data.length === 0) {
-      console.log("ℹ️ Modo de Demonstração: Usando dados Mockados (Banco vazio ou offline)");
-      // Simula um delay de rede para parecer real
-      await new Promise(r => setTimeout(r, 800));
-      return MOCK_LEADS;
-    }
-  
-    // Tratamento dos dados reais
-    return data.map((item: any) => ({
-      ...item,
-      locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
-      source: Array.isArray(item.source) ? item.source[0] : item.source,
-      classification: item.classification || { label: 'Curioso', score: 0 } 
-    }));
-
-  } catch (err) {
-    console.warn("⚠️ Erro de conexão, usando fallback mock:", err);
-    return MOCK_LEADS;
+  if (error) {
+    console.error("Erro ao buscar leads:", error);
+    throw error;
   }
+  
+  // Tratamento dos dados para o formato do Frontend
+  return data?.map((item: any) => ({
+    ...item,
+    // Garante que location e source sejam objetos planos, caso o Supabase retorne array
+    locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
+    source: Array.isArray(item.source) ? item.source[0] : item.source,
+    // Fallback para classificação se não vier do banco (no MVP scraper mock já manda)
+    classification: item.classification || { label: 'Curioso', score: 0 } 
+  }));
 };
 
 export default function Home() {

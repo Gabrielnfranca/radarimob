@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 
 interface FilterBarProps {
@@ -6,6 +6,20 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
+  const [filters, setFilters] = useState({
+    neighborhood: '',
+    region: '',
+    type: ''
+  });
+
+  const handleSearch = () => {
+    onFilterChange(filters);
+  };
+
+  const handleChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 items-center">
       <div className="flex-1 w-full relative">
@@ -13,15 +27,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
         <input 
           type="text" 
           placeholder="Buscar bairro..." 
+          value={filters.neighborhood}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-          onChange={(e) => onFilterChange({ region: '', neighborhood: e.target.value, type: '' })}
+          onChange={(e) => handleChange('neighborhood', e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
       </div>
       
       <div className="flex gap-2 w-full md:w-auto">
         <select 
           className="flex-1 md:w-40 p-2 border border-gray-300 rounded-md bg-white text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-          onChange={(e) => onFilterChange({ region: e.target.value, neighborhood: '', type: '' })}
+          value={filters.region}
+          onChange={(e) => handleChange('region', e.target.value)}
         >
           <option value="">Todas Regiões</option>
           <option value="Zona Sul">Zona Sul</option>
@@ -33,7 +50,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
 
         <select 
           className="flex-1 md:w-40 p-2 border border-gray-300 rounded-md bg-white text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-           onChange={(e) => onFilterChange({ region: '', neighborhood: '', type: e.target.value })}
+          value={filters.type}
+          onChange={(e) => handleChange('type', e.target.value)}
         >
           <option value="">Qualquer Tipo</option>
           <option value="apartamento">Apartamento</option>
@@ -41,6 +59,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
           <option value="terreno">Terreno</option>
           <option value="comercial">Comercial</option>
         </select>
+
+        <button 
+          onClick={handleSearch}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+        >
+          Buscar
+        </button>
       </div>
     </div>
   );
