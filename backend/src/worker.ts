@@ -51,9 +51,9 @@ async function runBot() {
         source_id: 1, 
         location_id: locationId, // ID resolvido do banco
         raw_content: signal.raw_content,
-        // url_original: signal.url_original || 'https://facebook.com', 
-        // price_min: signal.classification.price_min,
-        // price_max: signal.classification.price_max,
+        url_original: signal.url_original || 'https://facebook.com', 
+        price_min: signal.classification.price_min,
+        price_max: signal.classification.price_max,
         posted_at: signal.posted_at
       });
 
