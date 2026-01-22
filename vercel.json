@@ -1,4 +1,11 @@
 {
   "framework": "nextjs",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "crons": [
+    {
+      "path": "/api/cron/update-leads",
+      "schedule": "* * * * *"
+    }
+  ]
 }
+
