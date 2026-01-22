@@ -4,7 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 // Não precisamos do dotenv nem de manipulação de path.
 
 // Fallback para variáveis se não estiverem no .env ainda
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+// ATENÇÃO: Adicione 'https://' se faltar no env var
+const rawUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_URL = rawUrl.startsWith('http') ? rawUrl : (rawUrl ? `https://${rawUrl}` : 'https://placeholder.supabase.co');
 
 // IMPORTANTE: Para CRON JOBS e API Routes do Backend, usamos a SERVICE_KEY.
 // Se ela não estiver definida (ex: no client-side), usamos a ANON_KEY como fallback readonly.
