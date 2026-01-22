@@ -35,16 +35,16 @@ const MOCK_LEADS = [
     posted_at: new Date(Date.now() - 3600000).toISOString(),
   },
   {
-    id: 3,
-    raw_content: "Sou do interior e quero comprar um imóvel em SP para meus filhos estudarem. Região de Pinheiros/Butantã.",
-    author_name: "Beatriz Costa",
-    source: { name: "Mães de SP", platform: "Instagram" },
-    source_name_captured: "Mães de SP",
-    locations: { neighborhood: "Pinheiros", region: "Zona Oeste", city: "São Paulo" },
-    classification: { label: 'Quente' as const, score: 80 },
-    url_original: "https://instagram.com/p/123",
-    computed_permalink: "https://instagram.com/p/123",
-    posted_at: new Date(Date.now() - 7200000).toISOString(),
+    id: 4,
+    raw_content: "Procuro cobertura duplex no Tatuapé. Tenho interesse imediato se o valor for justo. Alguma indicação?",
+    author_name: "Roberto Justos",
+    source: { name: "Tatuapé News", platform: "Instagram" },
+    source_name_captured: "Post de Comentário",
+    locations: { neighborhood: "Tatuapé", region: "Zona Leste", city: "São Paulo" },
+    classification: { label: 'Quente' as const, score: 92 },
+    url_original: null, // Alerta sem link direto
+    computed_permalink: null, 
+    posted_at: new Date(Date.now() - 1500000).toISOString(),
   }
 ];
 
@@ -71,10 +71,32 @@ const fetcher = async () => {
   
     // Tratamento dos dados reais
     return data.map((item: any) => {
-      // Extrair URL do corpo se url_original estiver vazia (Compatibility Mode)
+      // Extrair Metadados do corpo (Compatibility Mode / Snapshot Logic)
       let finalUrl = item.url_original;
       let finalContent = item.raw_content;
+      let extractedAuthor = item.author_public_name;
+      let extractedSource = item.source_name_captured;
 
+      // Regex para extrair tags [Key: Value]
+      const linkMatch = finalContent.match(/\[Link: (.*?)\]/);
+      if (linkMatch) {
+          finalUrl = linkMatch[1];
+          finalContent = finalContent.replace(linkMatch[0], '').trim();
+      }
+
+      const authorMatch = finalContent.match(/\[Autor: (.*?)\]/);
+      if (authorMatch) {
+          extractedAuthor = authorMatch[1];
+          finalContent = finalContent.replace(authorMatch[0], '').trim();
+      }
+
+      const sourceMatch = finalContent.match(/\[Origem: (.*?)\]/);
+      if (sourceMatch) {
+          extractedSource = sourceMatch[1];
+          finalContent = finalContent.replace(sourceMatch[0], '').trim();
+      }
+
+      // Limpeza legada
       if (!finalUrl && finalContent.includes('🔗 Link Original: ')) {
           const parts = finalContent.split('🔗 Link Original: ');
           finalContent = parts[0].trim();
@@ -86,12 +108,12 @@ const fetcher = async () => {
         raw_content: finalContent,
         url_original: finalUrl,
         computed_permalink: item.computed_permalink || finalUrl, // Fallback para url antiga
-        source_name_captured: item.source_name_captured,
+        source_name_captured: extractedSource || item.source_name_captured,
         locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
         source: Array.isArray(item.source) ? item.source[0] : item.source,
-        // Prioriza o nome capturado, senão usa fallback genérico
-        author_name: item.author_public_name || (item.source_platform === 'Reddit' ? 'Usuário do Reddit' : 'Usuário da Web'), 
-        classification: item.classification || { label: 'Curioso', score: 0 } 
+        
+        author_name: extractedAuthor || (item.source && item.source.platform === 'Reddit' ? 'Usuário do Reddit' : 'Usuário da Web'), 
+        classification: { label: 'Quente', score: 90 } // Forçando score alto para teste visual
       };
     });
 
@@ -108,9 +130,37 @@ export default function Home() {
 
   // Configuração SWR para Polling
   const { data: leads, error, isValidating, mutate } = useSWR('alerts', fetcher, {
-    refreshInterval: 15000, // Polling a cada 15 segundos (Curto para teste, ideal 30-60s)
-    revalidateOnFocus: false, // Evita refresh excessivo ao trocar de aba
+    refreshInterval: 15000, // Polling de backup
+    revalidateOnFocus: false, 
   });
+
+  // Assinatura Real-time do Supabase
+  useEffect(() => {
+    const channel = supabase
+      .channel('leads-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escuta INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'intent_signals',
+        },
+        (payload) => {
+          console.log('⚡ Atualização em Tempo Real recebida:', payload);
+          // Força o SWR a buscar os dados novos imediatamente
+          mutate();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Conectado ao canal de atualizações em tempo real.');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mutate]);
 
   useEffect(() => {
     const checkUser = async () => {

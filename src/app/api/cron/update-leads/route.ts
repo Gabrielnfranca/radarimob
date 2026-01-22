@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { runBotEngine } from '@/../backend/src/services/botEngine';
+// Agora importamos do código migrado para dentro do 'src' do Next.js
+// para garantir que o Vercel consiga fazer o build corretamente.
+import { runBotEngine } from '@/lib/bot/services/botEngine';
 
 export const dynamic = 'force-dynamic'; // Garante que não faça cache
 
