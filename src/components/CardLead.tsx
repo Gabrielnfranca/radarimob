@@ -1,14 +1,16 @@
 import React from 'react';
-import { ExternalLink, MapPin, Clock, DollarSign, MessageCircle } from 'lucide-react';
+import { ExternalLink, MapPin, Clock, DollarSign, MessageCircle, AlertTriangle } from 'lucide-react';
 
 interface IntentSignal {
   id: number;
   raw_content: string;
-  author_name: string; // Novo
+  author_name: string; 
   source: { name: string; platform: string };
   locations: { neighborhood: string; region: string; city: string };
-  classification: { label: 'Quente' | 'Morno' | 'Curioso'; score: number }; // Novo
-  url_original: string;
+  classification: { label: 'Quente' | 'Morno' | 'Curioso'; score: number };
+  url_original: string | null;
+  computed_permalink?: string | null; // Novo: Link estável
+  source_name_captured?: string | null; // Novo: Nome do grupo específico
   posted_at: string;
   price_min?: number;
   price_max?: number;
@@ -31,6 +33,12 @@ export const CardLead: React.FC<CardLeadProps> = ({ lead, onSave }) => {
     'Curioso': 'bg-blue-50 text-blue-600 border-blue-100'
   }[lead.classification.label] || 'bg-gray-100';
 
+  // Lógica de Link Seguro
+  const safeLink = lead.computed_permalink || lead.url_original;
+  const hasLink = !!safeLink; // se null ou undefined, false
+
+  const sourceName = lead.source_name_captured || lead.source.name;
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-all group">
       {/* Cabeçalho: Autor + Intenção */}
@@ -44,7 +52,7 @@ export const CardLead: React.FC<CardLeadProps> = ({ lead, onSave }) => {
             <div className="flex items-center gap-2 text-xs text-gray-500">
                <span>{lead.source.platform}</span>
                <span>•</span>
-               <span>{lead.source.name}</span>
+               <span title={sourceName} className="truncate max-w-[200px]">{sourceName}</span>
             </div>
           </div>
         </div>
@@ -56,7 +64,7 @@ export const CardLead: React.FC<CardLeadProps> = ({ lead, onSave }) => {
 
       {/* Conteúdo do Post */}
       <div className="ml-13 pl-0 mb-4">
-        <p className="text-gray-800 text-base leading-relaxed mb-3">
+        <p className="text-gray-800 text-base leading-relaxed mb-3 font-medium">
           "{lead.raw_content}"
         </p>
         
@@ -79,17 +87,31 @@ export const CardLead: React.FC<CardLeadProps> = ({ lead, onSave }) => {
                 Orçamento detectado
             </span>
             )}
+            
+            {!hasLink && (
+                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs font-medium rounded border border-yellow-100" title="O link original expirou ou é privado, mas o conteúdo foi salvo.">
+                    <AlertTriangle size={14} /> 
+                    Link Indisponível (Contexto Preservado)
+                 </span>
+            )}
         </div>
 
         <div className="flex gap-3">
+            {hasLink ? (
              <a 
-              href={lead.url_original}
+              href={safeLink!}
               target="_blank"
               rel="noreferrer"
               className="text-gray-600 hover:text-blue-600 text-sm font-medium flex items-center gap-1 transition-colors"
             >
               <ExternalLink size={16} /> Ver na Origem
             </a>
+            ) : (
+             <span className="text-gray-400 text-sm font-medium flex items-center gap-1 cursor-not-allowed">
+              <ExternalLink size={16} /> Link Expirado
+            </span>
+            )}
+
             <button 
               onClick={() => onSave && onSave(lead.id)}
               className="bg-gray-900 hover:bg-black text-white text-sm font-medium px-4 py-1.5 rounded-md transition-colors flex items-center gap-2"
@@ -98,6 +120,7 @@ export const CardLead: React.FC<CardLeadProps> = ({ lead, onSave }) => {
             </button>
         </div>
       </div>
+
     </div>
   );
 };

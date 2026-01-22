@@ -7,7 +7,7 @@ async function seed() {
   console.log("Criando fonte de dados (Facebook)...");
   const { data, error } = await supabase
     .from('sources')
-    .upsert({ id: 1, name: 'Facebook Mock', platform: 'Facebook', url: 'https://facebook.com' })
+    .upsert({ id: 1, name: 'Facebook Mock', platform: 'Facebook', base_url: 'https://facebook.com' })
     .select();
 
   if (error) {

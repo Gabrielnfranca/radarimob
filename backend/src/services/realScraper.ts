@@ -58,14 +58,76 @@ export async function fetchRealSignals() {
             if (item.link.includes('instagram')) platform = 'Instagram';
             if (item.link.includes('twitter') || item.link.includes('x.com')) platform = 'Twitter';
 
-            signals.push({
-              raw_content: item.snippet.replace(/\n/g, ' '),
-              url_original: item.link, 
-              locationMatch,
-              classification,
-              posted_at: new Date().toISOString(),
-              source_platform: platform
-            });
+            // SUPER VALIDAÇÃO DE URL - Mesma lógica do DuckDuckGo
+            let isSpecificPost = true;
+            if (platform === 'Facebook' && !item.link.includes('/posts/') && !item.link.includes('/permalink/')) isSpecificPost = false;
+            // if (platform === 'Instagram' && !item.link.includes('/p/')) isSpecificPost = false; // Instagram links are usually generic in search
+            if (platform === 'Twitter' && !item.link.includes('/status/')) isSpecificPost = false;
+
+            // Extração de metadados
+            let external_post_id = null;
+            let external_group_id = null;
+            let computed_permalink = null;
+            let author_public_name = null;
+            let source_name_captured = null;
+
+            if (item.link) {
+                try {
+                    const urlObj = new URL(item.link);
+                    // Limpar query params para garantir permalink estavel
+                    urlObj.search = '';
+                    computed_permalink = urlObj.toString();
+
+                    // Tentar extrair IDs (Simples regex)
+                    const pathParts = urlObj.pathname.split('/');
+                    if (platform === 'Facebook') {
+                        // ex: /groups/12345/posts/67890
+                        const groupIndex = pathParts.indexOf('groups');
+                        if (groupIndex > -1 && pathParts[groupIndex + 1]) {
+                            external_group_id = pathParts[groupIndex + 1];
+                        }
+                        const postIndex = pathParts.indexOf('posts'); 
+                        if (postIndex > -1 && pathParts[postIndex + 1]) {
+                             external_post_id = pathParts[postIndex + 1];
+                        }
+                         // ex: /permalink.php?story_fbid=X&id=Y (menos comum no google results limpos, mas possivel)
+                    }
+                } catch (e) {
+                    computed_permalink = item.link; // Fallback
+                }
+            }
+            
+            // Tentar extrair autor do titulo (Ex: "Maria Silva | Facebook")
+            if (item.title) {
+                const parts = item.title.split('|');
+                if (parts.length > 0) {
+                     const possibleName = parts[0].trim();
+                     if (possibleName !== 'Facebook' && possibleName.length < 50) {
+                         author_public_name = possibleName;
+                     }
+                }
+                // Source name from snippet or title
+                source_name_captured = item.displayLink || platform; 
+            }
+
+
+            if (isSpecificPost) {
+                signals.push({
+                  raw_content: item.snippet.replace(/\n/g, ' '),
+                  url_original: item.link, 
+                  locationMatch,
+                  classification,
+                  posted_at: new Date().toISOString(),
+                  source_platform: platform,
+                  // New Fields
+                  author_public_name,
+                  source_name_captured,
+                  external_post_id,
+                  external_group_id,
+                  computed_permalink,
+                  confidence_score: classification.score
+                });
+            }
         }
     }
 

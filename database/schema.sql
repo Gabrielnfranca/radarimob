@@ -92,7 +92,15 @@ create table public.intent_signals (
   location_id bigint references public.locations(id), -- Pode ser null se não identificar o bairro
   
   raw_content text not null, -- O texto do post
-  url_original text not null, -- Link direto para o post
+  url_original text, -- Link capturado (pode ser instável)
+  
+  -- NOVOS CAMPOS (Resolução de Links Quebrados)
+  author_public_name text, -- Nome do autor (Ex: "Maria Silva")
+  source_name_captured text, -- Nome do Grupo/Página capturado no momento
+  external_post_id text, -- ID único do post na plataforma
+  external_group_id text, -- ID do grupo/container
+  computed_permalink text, -- Link reconstruído/limpo
+  confidence_score numeric default 0, -- Score de confiança da IA
   
   price_min numeric, -- Opcional, se detectado
   price_max numeric, -- Opcional, se detectado

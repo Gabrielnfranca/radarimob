@@ -8,36 +8,42 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { LogOut, User, RefreshCw, Bell } from 'lucide-react';
 
-// ... MOCK_LEADS existente ...
+// ... MOCK_LEADS refinado para COMPRADORES ...
 const MOCK_LEADS = [
   {
     id: 1,
-    raw_content: "Procuro apartamento na Vila Mariana com 2 quartos, até 600k. Alguém sabe de algo?",
+    raw_content: "Tenho carta de crédito aprovada de 500k, procuro apartamento na região da Vila Mariana ou Saúde. Urgente.",
     author_name: "Ana Silva",
     source: { name: "Grupo Facebook: Vizinhos Vila Mariana", platform: "Facebook" },
+    source_name_captured: "Vizinhos Vila Mariana",
     locations: { neighborhood: "Vila Mariana", region: "Zona Sul", city: "São Paulo" },
-    classification: { label: 'Quente' as const, score: 85 },
-    url_original: "https://facebook.com",
+    classification: { label: 'Quente' as const, score: 95 },
+    url_original: "https://facebook.com/groups/123/posts/456",
+    computed_permalink: "https://facebook.com/groups/123/posts/456",
     posted_at: new Date().toISOString(),
   },
   {
     id: 2,
-    raw_content: "Estou buscando casa em condomínio na Zona Leste, preferência Tatuapé. Aceita permuta.",
+    raw_content: "Quero sair do aluguel. Estou buscando studio ou 1 dormitório próximo ao metrô. Tenho 80k de entrada.",
     author_name: "Carlos Eduardo",
-    source: { name: "Reclamações Tatuapé", platform: "Facebook" },
-    locations: { neighborhood: "Tatuapé", region: "Zona Leste", city: "São Paulo" },
-    classification: { label: 'Morno' as const, score: 60 },
-    url_original: "https://twitter.com",
+    source: { name: "Investidores SP", platform: "Reddit" },
+    source_name_captured: null,
+    locations: { neighborhood: "Centro", region: "Centro", city: "São Paulo" },
+    classification: { label: 'Quente' as const, score: 85 },
+    url_original: "https://reddit.com",
+    computed_permalink: null, // Testando sem link
     posted_at: new Date(Date.now() - 3600000).toISOString(),
   },
   {
     id: 3,
-    raw_content: "Qual o melhor bairro pra morar com crianças perto do metrô linha azul? Pensando em investir.",
+    raw_content: "Sou do interior e quero comprar um imóvel em SP para meus filhos estudarem. Região de Pinheiros/Butantã.",
     author_name: "Beatriz Costa",
     source: { name: "Mães de SP", platform: "Instagram" },
-    locations: { neighborhood: "Saúde", region: "Zona Sul", city: "São Paulo" },
-    classification: { label: 'Curioso' as const, score: 30 },
-    url_original: "https://instagram.com",
+    source_name_captured: "Mães de SP",
+    locations: { neighborhood: "Pinheiros", region: "Zona Oeste", city: "São Paulo" },
+    classification: { label: 'Quente' as const, score: 80 },
+    url_original: "https://instagram.com/p/123",
+    computed_permalink: "https://instagram.com/p/123",
     posted_at: new Date(Date.now() - 7200000).toISOString(),
   }
 ];
@@ -64,13 +70,30 @@ const fetcher = async () => {
     }
   
     // Tratamento dos dados reais
-    return data.map((item: any) => ({
-      ...item,
-      locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
-      source: Array.isArray(item.source) ? item.source[0] : item.source,
-      author_name: 'Usuário do Facebook', // Fallback enquanto não temos coluna author no BD
-      classification: item.classification || { label: 'Curioso', score: 0 } 
-    }));
+    return data.map((item: any) => {
+      // Extrair URL do corpo se url_original estiver vazia (Compatibility Mode)
+      let finalUrl = item.url_original;
+      let finalContent = item.raw_content;
+
+      if (!finalUrl && finalContent.includes('🔗 Link Original: ')) {
+          const parts = finalContent.split('🔗 Link Original: ');
+          finalContent = parts[0].trim();
+          finalUrl = parts[1].trim();
+      }
+
+      return {
+        ...item,
+        raw_content: finalContent,
+        url_original: finalUrl,
+        computed_permalink: item.computed_permalink || finalUrl, // Fallback para url antiga
+        source_name_captured: item.source_name_captured,
+        locations: Array.isArray(item.locations) ? item.locations[0] : item.locations,
+        source: Array.isArray(item.source) ? item.source[0] : item.source,
+        // Prioriza o nome capturado, senão usa fallback genérico
+        author_name: item.author_public_name || (item.source_platform === 'Reddit' ? 'Usuário do Reddit' : 'Usuário da Web'), 
+        classification: item.classification || { label: 'Curioso', score: 0 } 
+      };
+    });
 
   } catch (err) {
     console.warn("⚠️ Erro de conexão, usando fallback mock:", err);
